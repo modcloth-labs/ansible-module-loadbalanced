@@ -1,0 +1,66 @@
+#!/usr/bin/env python
+
+# import ansible-specific magic
+from ansible.module_utils.basic import *
+import subprocess
+
+
+def main():
+    module = AnsibleModule(
+        argument_spec=dict(
+            action=dict(required=True, choices=['enable', 'disable']),
+            backend=dict(default='app', required=False),
+            server=dict(required=True),
+            socket=dict(
+                default='/var/run/haproxy.sock', required=False
+            )
+        ),
+        supports_check_mode=True
+    )
+
+    if module.check_mode:
+        module.exit_json(changed=False)
+
+    echo_cmd = ['echo',
+                '{0} server {1}/{2}'.
+                format(
+                    module.params['action'],
+                    module.params['backend'],
+                    module.params['server']
+                    )
+                ]
+
+    echo_process = subprocess.Popen(
+        echo_cmd,
+        stdout=subprocess.PIPE
+    )
+
+    socket_cmd = ['socat', module.params['socket'], 'stdio']
+
+    socat = subprocess.Popen(
+        socket_cmd,
+        stdin=echo_process.stdout,
+        stdout=subprocess.PIPE
+    )
+
+    echo_process.stdout.close()
+    out, err = socat.communicate()
+    if socat.returncode != 0:
+        module.exit_json(
+            failed=True,
+            returncode=socat.returncode,
+            stdout=out,
+            stderr=err,
+        )
+
+    # doesn't look like there's a way to check the result of the enable/disable
+    # call as long as its well-formed
+    module.exit_json(
+        changed=True,
+        out=out,
+        err=err,
+        cmd=socket_cmd,
+        echo_cmd=echo_cmd
+    )
+
+main()
