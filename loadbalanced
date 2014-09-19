@@ -8,7 +8,7 @@ import subprocess
 def main():
     module = AnsibleModule(
         argument_spec=dict(
-            action=dict(required=True, choices=['enable', 'disable']),
+            state=dict(required=True, choices=['enabled', 'disabled']),
             backend=dict(default='app', required=False),
             server=dict(required=True),
             socket=dict(
@@ -24,7 +24,7 @@ def main():
     echo_cmd = ['echo',
                 '{0} server {1}/{2}'.
                 format(
-                    module.params['action'],
+                    module.params['state'][:-1],
                     module.params['backend'],
                     module.params['server']
                     )
